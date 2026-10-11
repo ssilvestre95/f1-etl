@@ -43,6 +43,22 @@ flowchart LR
 `is_classified` is derived from the API's `positionText` (numeric means
 classified; `R`, `D` and `W` mean retired, disqualified and withdrawn).
 
+## Design decisions
+
+- **Classification flag:** `is_classified` comes from the API's `positionText`,
+  not from `status` or lap count. Retired drivers who complete 90% of the race
+  are still classified, and one disqualified driver kept a numeric position.
+- **Separate sprint fact table:** sprints are a different event with their own
+  points, so they live in `fact_sprint_results`. The `results` endpoint alone
+  understates championship totals.
+- **Incremental by round:** the pipeline compares the season calendar with the
+  rounds already loaded and only requests the missing ones.
+- **Validate before load:** raw data is saved first, then checked (one winner,
+  no duplicate drivers, plausible grid size). A failed check aborts the run
+  before anything is written, and the workflow turns red.
+- **Retry only transient errors:** `429`, `5xx` and network failures are
+  retried with backoff; other `4xx` errors fail immediately.
+
 ## Usage
 
 You need a PostgreSQL database (a free [Neon](https://neon.com) project works).
