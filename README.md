@@ -1,6 +1,6 @@
 # F1 ETL Pipeline
 
-![Tests](https://github.com/ssilvestre95/f1-etl/actions/workflows/tests.yml/badge.svg)
+[Tests](https://github.com/ssilvestre95/f1-etl/actions/workflows/tests.yml/badge.svg)
 
 A small ETL pipeline that extracts Formula 1 race and sprint results from the
 [Jolpica F1 API](https://api.jolpi.ca/ergast/f1/), transforms them into a
