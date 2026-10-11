@@ -1,10 +1,9 @@
 import logging
-import sqlite3
 import sys
 from datetime import date
 
 from etl.extract import extract_rounds, fetch_schedule, save_raw
-from etl.load import DB_PATH, create_schema, loaded_rounds, upsert
+from etl.load import create_schema, get_connection, loaded_rounds, upsert
 from etl.transform import (
     build_dim_constructor,
     build_dim_driver,
@@ -25,7 +24,7 @@ FACT_KEYS = ["season", "round", "driver_id"]
 def run(season: int) -> None:
     log.info("Starting ETL for season %s", season)
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with get_connection() as conn:
         create_schema(conn)
 
         # Decide what is missing

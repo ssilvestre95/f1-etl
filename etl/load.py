@@ -1,8 +1,10 @@
-import sqlite3
-import pandas as pd
-from pathlib import Path
+import os
 
-DB_PATH = Path("data/f1.db")
+import pandas as pd
+import psycopg
+from dotenv import load_dotenv
+
+load_dotenv()
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS dim_driver (
@@ -10,7 +12,7 @@ CREATE TABLE IF NOT EXISTS dim_driver (
     code           TEXT,
     given_name     TEXT,
     family_name    TEXT,
-    date_of_birth  TEXT,
+    date_of_birth  DATE,
     nationality    TEXT
 );
 
@@ -24,79 +26,82 @@ CREATE TABLE IF NOT EXISTS dim_race (
     season         INTEGER,
     round          INTEGER,
     race_name      TEXT,
-    race_date      TEXT,
+    race_date      DATE,
     circuit_id     TEXT,
     circuit_name   TEXT,
     locality       TEXT,
     country        TEXT,
-    lat            REAL,
-    long           REAL,
+    lat            DOUBLE PRECISION,
+    long           DOUBLE PRECISION,
     PRIMARY KEY (season, round)
 );
 
 CREATE TABLE IF NOT EXISTS fact_results (
     season         INTEGER,
     round          INTEGER,
-    driver_id      TEXT,
-    constructor_id TEXT,
+    driver_id      TEXT REFERENCES dim_driver (driver_id),
+    constructor_id TEXT REFERENCES dim_constructor (constructor_id),
     grid           INTEGER,
     position       INTEGER,
-    points         REAL,
+    points         DOUBLE PRECISION,
     laps           INTEGER,
     status         TEXT,
-    race_time_ms   INTEGER,
-    is_classified  INTEGER,
+    race_time_ms   BIGINT,
+    is_classified  BOOLEAN,
     PRIMARY KEY (season, round, driver_id),
-    FOREIGN KEY (season, round) REFERENCES dim_race (season, round),
-    FOREIGN KEY (driver_id) REFERENCES dim_driver (driver_id),
-    FOREIGN KEY (constructor_id) REFERENCES dim_constructor (constructor_id)
+    FOREIGN KEY (season, round) REFERENCES dim_race (season, round)
 );
+
 CREATE TABLE IF NOT EXISTS fact_sprint_results (
     season         INTEGER,
     round          INTEGER,
-    driver_id      TEXT,
-    constructor_id TEXT,
+    driver_id      TEXT REFERENCES dim_driver (driver_id),
+    constructor_id TEXT REFERENCES dim_constructor (constructor_id),
     grid           INTEGER,
     position       INTEGER,
-    points         REAL,
+    points         DOUBLE PRECISION,
     laps           INTEGER,
     status         TEXT,
-    race_time_ms   INTEGER,
-    is_classified  INTEGER,
+    race_time_ms   BIGINT,
+    is_classified  BOOLEAN,
     PRIMARY KEY (season, round, driver_id),
-    FOREIGN KEY (season, round) REFERENCES dim_race (season, round),
-    FOREIGN KEY (driver_id) REFERENCES dim_driver (driver_id),
-    FOREIGN KEY (constructor_id) REFERENCES dim_constructor (constructor_id)
+    FOREIGN KEY (season, round) REFERENCES dim_race (season, round)
 );
 """
 
 
-def create_schema(conn: sqlite3.Connection) -> None:
-    """Create all tables if they do not exist yet."""
-    conn.executescript(SCHEMA)
-    conn.commit()
+def get_connection() -> psycopg.Connection:
+    """Open a connection using DATABASE_URL (use it with a `with` block)."""
+    return psycopg.connect(os.environ["DATABASE_URL"])
 
-def upsert(conn: sqlite3.Connection, table: str, df: pd.DataFrame, keys: list[str]) -> None:
+
+def create_schema(conn: psycopg.Connection) -> None:
+    """Create all tables if they do not exist yet."""
+    conn.execute(SCHEMA)
+
+
+def upsert(conn: psycopg.Connection, table: str, df: pd.DataFrame, keys: list[str]) -> None:
     """Insert rows; on primary key conflict, update the other columns."""
     df = df.copy()
     for col in df.select_dtypes(include="datetime").columns:
-        df[col] = df[col].dt.strftime("%Y-%m-%d")
+        df[col] = df[col].dt.date
 
     rows = df.astype(object).where(df.notna(), None).values.tolist()
 
     cols = list(df.columns)
-    placeholders = ", ".join("?" * len(cols))
-    updates = ", ".join(f"{c} = excluded.{c}" for c in cols if c not in keys)
+    placeholders = ", ".join(["%s"] * len(cols))
+    updates = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c not in keys)
     sql = (
         f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({placeholders}) "
         f"ON CONFLICT ({', '.join(keys)}) DO UPDATE SET {updates}"
     )
-    conn.executemany(sql, rows)
-    conn.commit()
+    with conn.cursor() as cur:
+        cur.executemany(sql, rows)
 
-def loaded_rounds(conn: sqlite3.Connection, season: int) -> set[int]:
+
+def loaded_rounds(conn: psycopg.Connection, season: int) -> set[int]:
     """Rounds of a season already present in fact_results."""
     rows = conn.execute(
-        "SELECT DISTINCT round FROM fact_results WHERE season = ?", (season,)
+        "SELECT DISTINCT round FROM fact_results WHERE season = %s", (season,)
     ).fetchall()
     return {r[0] for r in rows}
