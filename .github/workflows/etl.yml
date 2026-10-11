@@ -1,0 +1,28 @@
+name: ETL
+
+on:
+    schedule:
+        - cron: "0 6 * * 1" # every Monday at 06:00 UTC, after the weekend races
+    workflow_dispatch: # allows running it manually from the Actions tab
+
+concurrency:
+    group: etl
+    cancel-in-progress: false
+
+jobs:
+    run-etl:
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        env:
+            DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: "3.14"
+                  cache: pip
+
+            - run: pip install -r requirements.txt
+
+            - run: python main.py $(date +%Y)
