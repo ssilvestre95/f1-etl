@@ -4,7 +4,7 @@
 
 A small ETL pipeline that extracts Formula 1 race and sprint results from the
 [Jolpica F1 API](https://api.jolpi.ca/ergast/f1/), transforms them into a
-dimensional model with `pandas`, and loads them into SQLite.
+dimensional model with `pandas`, and loads them into PostgreSQL.
 
 ## Pipeline
 
@@ -14,7 +14,7 @@ flowchart LR
     E -->|one JSON per race| R[(data/raw)]
     R --> T[transform.py]
     T -->|facts + dimensions| L[load.py]
-    L -->|upsert| DB[(SQLite<br/>f1.db)]
+    L -->|upsert| DB[(PostgreSQL<br/>Neon)]
 ````
 
 ## Features
@@ -24,7 +24,11 @@ flowchart LR
 - **Resilient extraction:** pagination, timeouts, and retries with backoff on
   temporary errors (`429`, `5xx`, network failures).
 - **Raw layer:** each race is saved as JSON in `data/raw/` before transforming.
-- **Tested:** `pytest` suite for the transform and load logic.
+- **Tested:** pytest suite for the transform and load logic, run in CI against a dedicated Postgres branch.
+- **Scheduled:** a GitHub Actions workflow runs the pipeline every Monday and
+  can also be triggered manually.
+- **Atomic runs:** each run is a single transaction, so a failure never leaves
+  a season half-loaded.
 
 ## Data model
 
@@ -41,17 +45,33 @@ classified; `R`, `D` and `W` mean retired, disqualified and withdrawn).
 
 ## Usage
 
+You need a PostgreSQL database (a free [Neon](https://neon.com) project works).
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
+echo "DATABASE_URL=postgresql://..." > .env   # your connection string
+
 python main.py 2024          # one season
 python main.py 2023 2024     # several seasons
-python -m pytest -v          # run the tests
 ```
 
-The database is created at `data/f1.db`.
+### Tests
+
+Tests need a separate database, so they never touch real data. Add a second
+connection string to `.env` (for example, a Neon branch called `test`):
+
+```bash
+TEST_DATABASE_URL=postgresql://...
+python -m pytest -v
+```
+
+### Scheduling
+
+`.github/workflows/etl.yml` runs the pipeline every Monday. It expects a
+`DATABASE_URL` repository secret.
 
 ## Project structure
 
@@ -59,7 +79,7 @@ The database is created at `data/f1.db`.
 etl/
 ├── extract.py    # API calls, pagination, retries, raw JSON
 ├── transform.py  # flatten, type, and model the data
-└── load.py       # SQLite schema and upserts
+└── load.py       # Postgres schema and upserts
 tests/            # pytest suites
 main.py           # orchestrates the pipeline
 ```
