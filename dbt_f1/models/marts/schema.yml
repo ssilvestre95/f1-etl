@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: fct_session_results
+    description: One row per driver per session (race or sprint).
+    columns:
+      - name: driver_id
+        data_tests: [not_null]
+
+  - name: driver_standings
+    description: >
+      Drivers' championship per season. Points include sprints; wins and
+      podiums count races only.
+    columns:
+      - name: championship_position
+        data_tests: [not_null]
+      - name: driver_name
+        data_tests: [not_null]
+
+  - name: constructor_points_by_race
+    description: >
+      Constructor points per race weekend (race plus sprint) with a running
+      total per season.
+    columns:
+      - name: constructor_name
+        data_tests: [not_null]
+      - name: cumulative_points
+        data_tests: [not_null]

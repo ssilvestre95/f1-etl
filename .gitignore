@@ -4,3 +4,7 @@ __pycache__/
 data/raw/
 data/*.db
 .env
+.venv-dbt/
+target/
+dbt_packages/
+logs/

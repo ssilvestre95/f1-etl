@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: f1
+    schema: public
+    tables:
+      - name: fact_results
+      - name: fact_sprint_results
+      - name: dim_driver
+      - name: dim_constructor
+      - name: dim_race

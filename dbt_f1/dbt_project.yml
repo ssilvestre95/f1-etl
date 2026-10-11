@@ -1,0 +1,12 @@
+name: f1_analytics
+version: "1.0.0"
+profile: f1
+
+model-paths: ["models"]
+
+models:
+  f1_analytics:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

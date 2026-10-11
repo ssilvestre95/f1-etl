@@ -1,28 +1,51 @@
 name: ETL
 
 on:
-    schedule:
-        - cron: "0 6 * * 1" # every Monday at 06:00 UTC, after the weekend races
-    workflow_dispatch: # allows running it manually from the Actions tab
+  schedule:
+    - cron: "0 6 * * 1"   # every Monday at 06:00 UTC, after the weekend races
+  workflow_dispatch:       # allows running it manually from the Actions tab
 
 concurrency:
-    group: etl
-    cancel-in-progress: false
+  group: etl
+  cancel-in-progress: false
 
 jobs:
-    run-etl:
-        runs-on: ubuntu-latest
-        timeout-minutes: 15
-        env:
-            DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        steps:
-            - uses: actions/checkout@v4
+  run-etl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
 
-            - uses: actions/setup-python@v5
-              with:
-                  python-version: "3.14"
-                  cache: pip
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
 
-            - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt
 
-            - run: python main.py $(date +%Y)
+      - run: python main.py $(date +%Y)
+
+      - name: Install dbt
+        run: |
+          python -m venv .venv-dbt
+          .venv-dbt/bin/python -m pip install -r requirements-dbt.txt
+
+      - name: Load dbt credentials
+        run: |
+          python - <<'EOF'
+          import os
+          from urllib.parse import unquote, urlparse
+
+          u = urlparse(os.environ["DATABASE_URL"])
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write(f"DBT_HOST={u.hostname}\n")
+              f.write(f"DBT_USER={unquote(u.username)}\n")
+              f.write(f"DBT_PASSWORD={unquote(u.password)}\n")
+              f.write(f"DBT_DBNAME={u.path.lstrip('/')}\n")
+          print(f"::add-mask::{unquote(u.password)}")
+          EOF
+
+      - name: dbt build
+        run: .venv-dbt/bin/dbt build --project-dir dbt_f1 --profiles-dir dbt_f1
