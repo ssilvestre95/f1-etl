@@ -148,6 +148,7 @@ expects a `DATABASE_URL` repository secret.
 
 ## Project structure
 
+```
 etl/
 ├── extract.py     # API calls, pagination, retries, raw JSON
 ├── validate.py    # checks on raw data before loading
@@ -157,8 +158,7 @@ dbt_f1/            # dbt project: staging views, marts, data tests
 dashboard/         # Streamlit app
 tests/             # pytest suites
 main.py            # orchestrates the pipeline
-
-## Example query
+```
 
 ## Example query
 
