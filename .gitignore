@@ -8,3 +8,4 @@ data/*.db
 target/
 dbt_packages/
 logs/
+.venv-dash/
