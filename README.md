@@ -10,16 +10,22 @@ dimensional model with `pandas`, and loads them into PostgreSQL.
 
 ![F1 Analytics dashboard](docs/dashboard.png)
 
+
 ## Pipeline
 
-````mermaid
+**Ingestion** (runs weekly via GitHub Actions)
+
+```mermaid
 flowchart LR
-    API[Jolpica F1 API] -->|paginated requests,<br/>retries| E[extract.py]
-    E -->|one JSON per race| R[(data/raw)]
-    R --> T[transform.py]
-    T -->|facts + dimensions| L[load.py]
-    L -->|upsert| DB[(PostgreSQL<br/>Neon)]
-````
+    API[Jolpica API] --> E[Extract] --> V{Validate} -->|load| DB[(Postgres)]
+```
+
+**Analytics**
+
+```mermaid
+flowchart LR
+    DB[(Postgres)] --> S[dbt staging] --> M[dbt marts] --> D[Streamlit]
+```
 
 ## Features
 
