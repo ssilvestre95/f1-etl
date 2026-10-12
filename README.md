@@ -6,6 +6,10 @@ A small ETL pipeline that extracts Formula 1 race and sprint results from the
 [Jolpica F1 API](https://api.jolpi.ca/ergast/f1/), transforms them into a
 dimensional model with `pandas`, and loads them into PostgreSQL.
 
+**Live dashboard:** [f1-etl-analytics.streamlit.app](https://f1-etl-analytics.streamlit.app)
+
+![F1 Analytics dashboard](docs/dashboard.png)
+
 ## Pipeline
 
 ````mermaid
