@@ -75,7 +75,7 @@ st.dataframe(
     height=400,
     column_config={
         "pos": st.column_config.NumberColumn("Pos", width="small", alignment="center"),
-        "driver": st.column_config.TextColumn("Driver", width="medium"),
+        "driver": st.column_config.TextColumn("Driver", width="medium", alignment="center"),
         "points": st.column_config.ProgressColumn(
             "Points",
             format="%.0f",
