@@ -39,6 +39,10 @@ flowchart LR
   can also be triggered manually.
 - **Atomic runs:** each run is a single transaction, so a failure never leaves
   a season half-loaded.
+- **Analytics layer:** dbt models (staging views and mart tables) with 29 data
+  tests, rebuilt after every scheduled load.
+- **Dashboard:** a Streamlit app that reads the marts through a read-only
+  database role.
 
 ## Data model
 
@@ -52,6 +56,48 @@ flowchart LR
 
 `is_classified` is derived from the API's `positionText` (numeric means
 classified; `R`, `D` and `W` mean retired, disqualified and withdrawn).
+
+## Analytics layer (dbt)
+
+Models live in `dbt_f1/` and build into the `analytics` schema, separate from
+the raw `public` tables.
+
+| Layer | Models |
+|---|---|
+| `staging` (views) | `stg_race_results`, `stg_sprint_results`, `stg_drivers`, `stg_constructors`, `stg_races` |
+| `marts` (tables) | `fct_session_results`, `driver_standings`, `constructor_points_by_race` |
+
+Tests include unique keys, foreign-key relationships, accepted values, one
+winner per session, and a reconciliation check: driver points and constructor
+points must add up to the same total per season.
+
+```bash
+pip install -r requirements-dbt.txt
+cd dbt_f1
+dbt build --profiles-dir .
+```
+
+`profiles.yml` reads `DBT_HOST`, `DBT_USER`, `DBT_PASSWORD` and `DBT_DBNAME`
+from the environment.
+
+## Dashboard
+
+`dashboard/app.py` shows the drivers' championship and the constructors'
+points by round for any loaded season. It connects with a role that can only
+read the `analytics` schema:
+
+```sql
+CREATE ROLE dashboard_reader WITH LOGIN PASSWORD '...';
+GRANT USAGE ON SCHEMA analytics TO dashboard_reader;
+GRANT SELECT ON ALL TABLES IN SCHEMA analytics TO dashboard_reader;
+ALTER DEFAULT PRIVILEGES IN SCHEMA analytics GRANT SELECT ON TABLES TO dashboard_reader;
+```
+
+```bash
+pip install -r dashboard/requirements.txt
+echo "DASHBOARD_DATABASE_URL=postgresql://dashboard_reader:..." >> .env
+streamlit run dashboard/app.py
+```
 
 ## Design decisions
 
@@ -96,29 +142,31 @@ python -m pytest -v
 
 ### Scheduling
 
-`.github/workflows/etl.yml` runs the pipeline every Monday. It expects a
-`DATABASE_URL` repository secret.
+`.github/workflows/etl.yml` runs every Monday: the pipeline first, then
+`dbt build`. If validation or any dbt test fails, the workflow turns red. It
+expects a `DATABASE_URL` repository secret.
 
 ## Project structure
 
-```
 etl/
-├── extract.py    # API calls, pagination, retries, raw JSON
-├── transform.py  # flatten, type, and model the data
-└── load.py       # Postgres schema and upserts
-tests/            # pytest suites
-main.py           # orchestrates the pipeline
-```
+├── extract.py     # API calls, pagination, retries, raw JSON
+├── validate.py    # checks on raw data before loading
+├── transform.py   # flatten, type, and model the data
+└── load.py        # Postgres schema and upserts
+dbt_f1/            # dbt project: staging views, marts, data tests
+dashboard/         # Streamlit app
+tests/             # pytest suites
+main.py            # orchestrates the pipeline
+
+## Example query
 
 ## Example query
 
 ```sql
-SELECT d.given_name || ' ' || d.family_name AS driver, SUM(f.points) AS points
-FROM fact_results f
-JOIN dim_driver d ON d.driver_id = f.driver_id
-WHERE f.season = 2024
-GROUP BY f.driver_id
-ORDER BY points DESC
+SELECT championship_position, driver_name, points, wins
+FROM analytics.driver_standings
+WHERE season = 2024
+ORDER BY championship_position
 LIMIT 5;
 ```
 
