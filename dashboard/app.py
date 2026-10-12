@@ -74,7 +74,7 @@ st.dataframe(
     hide_index=True,
     height=400,
     column_config={
-        "pos": st.column_config.NumberColumn("Pos", width="small"),
+        "pos": st.column_config.NumberColumn("Pos", width="small", alignment="center"),
         "driver": st.column_config.TextColumn("Driver", width="medium"),
         "points": st.column_config.ProgressColumn(
             "Points",
@@ -83,8 +83,8 @@ st.dataframe(
             max_value=float(standings["points"].max()),
             width="large",
         ),
-        "wins": st.column_config.NumberColumn("Wins", width="small"),
-        "podiums": st.column_config.NumberColumn("Podiums", width="small"),
+        "wins": st.column_config.NumberColumn("Wins", width="small", alignment="center"),
+        "podiums": st.column_config.NumberColumn("Podiums", width="small", alignment="center"),
     },
 )
 
