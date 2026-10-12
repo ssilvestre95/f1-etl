@@ -17,7 +17,7 @@ dimensional model with `pandas`, and loads them into PostgreSQL.
 
 ```mermaid
 flowchart LR
-    API[Jolpica API] --> E[Extract] --> V{Validate} --> L[Load] DB[(Postgres)]
+    API[Jolpica API] --> E[Extract] --> V{Validate} --> L[Load] --> DB[(Postgres)]
 ```
 
 **Analytics**
